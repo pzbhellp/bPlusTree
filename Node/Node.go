@@ -4,25 +4,47 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/pangzhanbo/bPlusTree/Data"
+	"github.com/pangzhanbo/bPlusTree/config"
+	"math"
 )
 
 //基础的节点信息
 
-type Node struct {
-	MaxSize int
-	Size    int
-	Data    []*Data.Data
-	Next    *Node
+type Node interface {
+	Insert(data *Data.Data) (*NodeBase, error)
+	OptimisticInsert(data *Data.Data) error
+	PessimisticInsert(data *Data.Data) (splitNode *NodeBase, err error)
+	Split() *NodeBase
+	Sort()
+	ToJson() string
+	Find(key *Data.Key) *Data.Data
 }
 
-func (n *Node) Insert(data *Data.Data) error {
-	if err := n.optimisticInsert(data); nil != err {
-		return n.pessimisticInsert(data)
+type NodeBase struct {
+	MaxSize  int
+	Size     int
+	Data     []*Data.Data
+	NextNode *NodeBase
+	UpNode   *NodeBase
+}
+
+func NewNode() *NodeBase {
+	return &NodeBase{
+		MaxSize:  config.NODE_MAX_SIZE,
+		Size:     0,
+		NextNode: nil,
+		UpNode:   nil,
 	}
-	return nil
 }
 
-func (n *Node) optimisticInsert(data *Data.Data) error {
+func (n *NodeBase) Insert(data *Data.Data) (*NodeBase, error) {
+	if err := n.OptimisticInsert(data); nil != err {
+		return n.PessimisticInsert(data)
+	}
+	return nil, nil
+}
+
+func (n *NodeBase) OptimisticInsert(data *Data.Data) error {
 	if !n.canInsert() {
 		return fmt.Errorf("Can't insert data. Node:%v ", n)
 	}
@@ -31,27 +53,67 @@ func (n *Node) optimisticInsert(data *Data.Data) error {
 	return nil
 }
 
-func (n *Node) pessimisticInsert(data *Data.Data) error {
+func (n *NodeBase) PessimisticInsert(data *Data.Data) (splitNode *NodeBase, err error) {
+	if !n.canInsert() {
+		splitNode = n.Split()
+	}
 
-	return nil
+	if data.Key.GE(splitNode.Data[0].Key) {
+		err = splitNode.OptimisticInsert(data)
+	} else {
+		err = n.OptimisticInsert(data)
+	}
+
+	return
 }
 
-func (n *Node) Split() []*Node {
-	return nil
+func (n *NodeBase) Split() *NodeBase {
+	next := NewNode()
+
+	fillNum := int(math.Ceil(float64(n.MaxSize) * config.FILL_FACTOR))
+
+	next.Size = fillNum
+	next.Data = n.Data[fillNum:]
+
+	n.Data = n.Data[:fillNum]
+	n.Size = n.MaxSize - fillNum
+
+	if nil != n.NextNode {
+		next.NextNode = n.NextNode
+	}
+	if n.UpNode != nil {
+		next.UpNode = n.UpNode
+	}
+	n.NextNode = next
+
+	return next
 }
 
-func (n *Node) canInsert() bool {
+func (n *NodeBase) canInsert() bool {
 	return n.Size < n.MaxSize
 }
 
-func (n *Node) Sort() {
+func (n *NodeBase) Sort() {
 	Data.Sort(n.Data)
 }
 
-func (n *Node) ToJson() string {
+func (n *NodeBase) ToJson() string {
 	ret, err := json.Marshal(n)
 	if nil != err {
 		return ""
 	}
 	return string(ret)
+}
+
+func (n *NodeBase) Find(key *Data.Key) *Data.Data {
+	if n.Size <= 0 {
+		return nil
+	}
+	return Data.Find(n.Data, key)
+}
+
+func (n *NodeBase) FindLast(key *Data.Key) *Data.Data {
+	if n.Size <= 0 {
+		return nil
+	}
 }

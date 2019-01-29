@@ -1,3 +1,3 @@
 package Data
 
-type Value int
+type Value interface{}

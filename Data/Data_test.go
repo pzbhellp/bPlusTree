@@ -2,7 +2,6 @@ package Data
 
 import (
 	"fmt"
-	"math/rand"
 	"testing"
 )
 
@@ -49,7 +48,7 @@ func TestSort(t *testing.T) {
 		dataList = append(dataList, tmp)
 	}
 	for i := 0; i < 20; i++ {
-		dataList = append(dataList, genData())
+		dataList = append(dataList, GenData())
 	}
 	Sort(dataList)
 	println("------------------")
@@ -58,11 +57,26 @@ func TestSort(t *testing.T) {
 	}
 }
 
-func genData() *Data {
-	key := Key(rand.Int31n(100))
-	value := Value(100 + rand.Int31n(100))
-	return &Data{
-		Key:   &key,
-		Value: &value,
+func TestFind(t *testing.T) {
+	dataList := make([]*Data, 0)
+	var key *Key
+	for i := 0; i < 5; i++ {
+		tmp := GenData()
+		dataList = append(dataList, tmp)
+		if i == 3 {
+			findKey := *tmp.Key + 1
+			key = &findKey
+		}
 	}
+	Sort(dataList)
+	println("find key:")
+	println(*key)
+	println("------------------")
+	for _, item := range dataList {
+		println(item.ToString())
+	}
+
+	ret, index := Find(dataList, key)
+	println(ret.ToString())
+	println(index)
 }
